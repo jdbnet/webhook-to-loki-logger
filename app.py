@@ -38,7 +38,7 @@ def discord_payload_to_log_lines(payload: dict) -> list[str]:
 
     content = payload.get("content")
     if isinstance(content, str) and content.strip():
-        lines.append(f"content: {content.strip()}")
+        lines.append(content.strip())
 
     for embed in payload.get("embeds") or []:
         if not isinstance(embed, dict):

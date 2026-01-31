@@ -1,34 +1,41 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: project
-  namespace: project
+  name: discord-to-loki
+  namespace: discord-to-loki
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: project
+      app: discord-to-loki
   template:
     metadata:
       labels:
-        app: project
+        app: discord-to-loki
     spec:
       containers:
-        - name: project
-          image: ghcr.io/jdb-net/project:latest
+        - name: discord-to-loki
+          image: cr.jdbnet.co.uk/public/discord-to-loki:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
-              name: "project"
+              name: "discord-to-loki"
+          env:
+            - name: LOKI_URL
+              value: "https://loki.example.com"
+            - name: LOKI_USERNAME
+              value: "your_username"
+            - name: LOKI_PASSWORD
+              value: "your_password"
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: project-ingress-service
-  namespace: project
+  name: discord-to-loki-ingress-service
+  namespace: discord-to-loki
 spec:
   selector:
-    app: project
+    app: discord-to-loki
   ports:
     - protocol: TCP
       port: 80
@@ -37,17 +44,17 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: project-ingress
-  namespace: project
+  name: discord-to-loki-ingress
+  namespace: discord-to-loki
 spec:
   rules:
-  - host: project.jdbnet.co.uk
+  - host: discord-to-loki.jdbnet.co.uk
     http:
       paths:
       - pathType: Prefix
         path: "/"
         backend:
           service:
-            name: project-ingress-service
+            name: discord-to-loki-ingress-service
             port:
               number: 80

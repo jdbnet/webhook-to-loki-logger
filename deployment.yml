@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project
+  namespace: project
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: project
+  template:
+    metadata:
+      labels:
+        app: project
+    spec:
+      containers:
+        - name: project
+          image: ghcr.io/jdb-net/project:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+              name: "project"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-ingress-service
+  namespace: project
+spec:
+  selector:
+    app: project
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: project-ingress
+  namespace: project
+spec:
+  rules:
+  - host: project.jdbnet.co.uk
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: project-ingress-service
+            port:
+              number: 80

@@ -3,4 +3,4 @@ WORKDIR /app
 COPY . /app
 RUN pip install -r requirements.txt
 EXPOSE 5000
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app", "--log-level", "warning"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app", "--log-level", "info", "--capture-output", "--enable-stdio-inheritance"]

@@ -24,7 +24,10 @@ for name, value in [("LOKI_URL", LOKI_URL), ("LOKI_USERNAME", LOKI_USERNAME), ("
 PUSH_URL = f"{LOKI_URL.rstrip('/')}/loki/api/v1/push"
 AUTH = (LOKI_USERNAME, LOKI_PASSWORD)
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -82,6 +85,7 @@ def push_to_loki(log_lines: list[str]) -> None:
         timeout=30,
     )
     resp.raise_for_status()
+    logger.info("Sent %d line(s) to Loki, status=%d", len(log_lines), resp.status_code)
 
 
 @app.route("/health")
@@ -114,10 +118,11 @@ def webhook():
     if not log_lines:
         return "", 400
 
+    logger.info("Webhook received, extracted %d line(s)", len(log_lines))
     try:
         push_to_loki(log_lines)
     except requests.RequestException as e:
-        logger.exception("Loki push failed: %s", e)
+        logger.exception("Failed to send %d line(s) to Loki: %s", len(log_lines), e)
         return "", 502
 
     return "", 204

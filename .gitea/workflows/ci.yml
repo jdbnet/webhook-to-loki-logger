@@ -17,3 +17,30 @@ jobs:
       - name: Build and push Docker image
         run: |
           docker buildx build --push -t cr.jdbnet.co.uk/public/discord-to-loki:latest .
+
+  sonarqube:
+    name: SonarQube
+    runs-on: build-htz-01
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create Valid Project Key
+        id: sonar_setup
+        run: |
+          CLEAN_KEY=$(echo "${{ gitea.repository }}" | tr '/' ':')
+          echo "key=$CLEAN_KEY" >> $GITHUB_OUTPUT
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        continue-on-error: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ steps.sonar_setup.outputs.key }}
+            -Dsonar.projectName=${{ gitea.repository }}
+            -Dsonar.qualitygate.wait=true

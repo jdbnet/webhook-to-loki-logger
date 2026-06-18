@@ -72,7 +72,7 @@ def push_to_loki(log_lines: list[str]) -> None:
     body = {
         "streams": [
             {
-                "stream": {"source": "webhook", "job": "webhook-to-loki"},
+                "stream": {"source": "webhook", "job": "webhook-to-loki", "event": "discord"},
                 "values": values,
             }
         ]

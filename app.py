@@ -114,11 +114,17 @@ def discord_payload_to_log_lines(payload: dict) -> list[str]:
         if "title" in e:
             msg_parts.append(f"[{e['title']}]")
         if "description" in e and isinstance(e["description"], str):
-            # Only append the first 100 characters of the description to keep it clean
-            desc = e["description"]
-            if len(desc) > 100:
-                desc = desc[:97] + "..."
-            msg_parts.append(desc)
+            msg_parts.append(e["description"])
+            
+        if "fields" in e and isinstance(e["fields"], dict):
+            field_parts = []
+            for k, v in e["fields"].items():
+                if isinstance(v, str):
+                    field_parts.append(f"{k}: {v}")
+                elif isinstance(v, dict) or isinstance(v, list):
+                    field_parts.append(f"{k}: {json.dumps(v)}")
+            if field_parts:
+                msg_parts.append(" | ".join(field_parts))
             
     if msg_parts:
         result["message"] = " - ".join(msg_parts)

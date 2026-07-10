@@ -33,34 +33,73 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 
-def discord_payload_to_log_lines(payload: dict) -> list[str]:
-    """Extract log lines from a Discord-style webhook payload (content + embeds)."""
-    lines = []
-    if not payload:
-        return lines
+def clean_markdown(text: str) -> str:
+    """Remove Discord markdown blocks to make text more readable."""
+    if not isinstance(text, str):
+        return ""
+    return text.replace("```json\n", "").replace("```\n", "").replace("```", "").strip()
 
+
+def discord_payload_to_log_lines(payload: dict) -> list[str]:
+    """Extract log lines from a Discord-style webhook payload.
+    Formats the entire payload as a single JSON string for Loki, parsing embedded JSON if possible.
+    """
+    if not payload:
+        return []
+
+    result = {}
     content = payload.get("content")
     if isinstance(content, str) and content.strip():
-        lines.append(content.strip())
+        cleaned = clean_markdown(content)
+        try:
+            result["content"] = json.loads(cleaned)
+        except json.JSONDecodeError:
+            result["content"] = cleaned
 
+    embeds_out = []
     for embed in payload.get("embeds") or []:
         if not isinstance(embed, dict):
             continue
+            
+        e_out = {}
         title = embed.get("title")
         if isinstance(title, str) and title.strip():
-            lines.append(f"embed: {title.strip()}")
+            e_out["title"] = title.strip()
+            
         description = embed.get("description")
         if isinstance(description, str) and description.strip():
-            lines.append(f"embed: {description.strip()}")
+            cleaned = clean_markdown(description)
+            try:
+                e_out["description"] = json.loads(cleaned)
+            except json.JSONDecodeError:
+                e_out["description"] = cleaned
+                
+        fields_out = {}
         for field in embed.get("fields") or []:
             if not isinstance(field, dict):
                 continue
-            name = field.get("name") or ""
-            value = field.get("value") or ""
-            if isinstance(name, str) and isinstance(value, str):
-                lines.append(f"field: {name.strip()} | {value.strip()}")
+            name = field.get("name")
+            value = field.get("value")
+            if isinstance(name, str) and isinstance(value, str) and name.strip():
+                cleaned_val = clean_markdown(value)
+                try:
+                    fields_out[name.strip()] = json.loads(cleaned_val)
+                except json.JSONDecodeError:
+                    fields_out[name.strip()] = cleaned_val
+                    
+        if fields_out:
+            e_out["fields"] = fields_out
+                
+        if e_out:
+            embeds_out.append(e_out)
+            
+    if embeds_out:
+        result["embeds"] = embeds_out
 
-    return lines
+    if not result:
+        return []
+
+    return [json.dumps(result)]
 
 
 def push_to_loki(log_lines: list[str]) -> None:

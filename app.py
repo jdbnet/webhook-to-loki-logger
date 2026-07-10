@@ -33,11 +33,16 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 
+import re
+
 def clean_markdown(text: str) -> str:
     """Remove Discord markdown blocks to make text more readable."""
     if not isinstance(text, str):
         return ""
-    return text.replace("```json\n", "").replace("```\n", "").replace("```", "").strip()
+    text = text.replace("```json\n", "").replace("```\n", "").replace("```", "")
+    # Strip Discord bold, underline, and strikethrough formatting
+    text = re.sub(r'(\*\*|__|~~)', '', text)
+    return text.strip()
 
 
 def discord_payload_to_log_lines(payload: dict) -> list[str]:
@@ -80,7 +85,9 @@ def discord_payload_to_log_lines(payload: dict) -> list[str]:
                 continue
             name = field.get("name")
             value = field.get("value")
-            if isinstance(name, str) and isinstance(value, str) and name.strip():
+            if isinstance(name, str) and name.strip() and value is not None:
+                if not isinstance(value, str):
+                    value = str(value)
                 cleaned_val = clean_markdown(value)
                 try:
                     fields_out[name.strip()] = json.loads(cleaned_val)
@@ -98,6 +105,25 @@ def discord_payload_to_log_lines(payload: dict) -> list[str]:
 
     if not result:
         return []
+
+    # Generate a summary message so Grafana doesn't show a blank log line
+    msg_parts = []
+    if "content" in result and isinstance(result["content"], str):
+        msg_parts.append(result["content"])
+    for e in embeds_out:
+        if "title" in e:
+            msg_parts.append(f"[{e['title']}]")
+        if "description" in e and isinstance(e["description"], str):
+            # Only append the first 100 characters of the description to keep it clean
+            desc = e["description"]
+            if len(desc) > 100:
+                desc = desc[:97] + "..."
+            msg_parts.append(desc)
+            
+    if msg_parts:
+        result["message"] = " - ".join(msg_parts)
+    else:
+        result["message"] = "Discord Webhook Event"
 
     return [json.dumps(result)]
 
